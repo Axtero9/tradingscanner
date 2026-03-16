@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloomberg Terminal — Chart Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --or:#f5821f;--or2:#e06b0a;--or3:#ff9a3c;
+  --bg0:#000;--bg1:#0a0a0a;--bg2:#111;--bg3:#161616;--bg4:#1a1a1a;
+  --b1:#1a1a1a;--b2:#222;--b3:#2a2a2a;
+  --t1:#e8e8e8;--t2:#aaa;--t3:#777;--t4:#555;--t5:#333;
+  --gr:#00c853;--rd:#ff1744;--yw:#ffd600;--cy:#00b8d4;
+  --mono:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;background:var(--bg0);color:var(--t1);font-family:var(--mono);font-size:12px;line-height:1.4;overflow-x:hidden;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg1);}
+::-webkit-scrollbar-thumb{background:var(--b2);}
+
+/* TOPBAR */
+#topbar{background:var(--bg0);border-bottom:2px solid var(--or);display:flex;align-items:stretch;height:36px;flex-shrink:0;position:sticky;top:0;z-index:100;}
+#bb-logo{background:var(--or);color:#000;font-weight:700;font-size:13px;padding:0 18px;display:flex;align-items:center;letter-spacing:1.5px;white-space:nowrap;flex-shrink:0;}
+#tbtabs{display:flex;align-items:stretch;flex:1;overflow:hidden;}
+.tbtab{padding:0 14px;display:flex;align-items:center;font-size:11px;color:var(--t4);border-right:1px solid var(--b1);white-space:nowrap;letter-spacing:.5px;cursor:default;}
+.tbtab.act{color:var(--or);background:rgba(245,130,31,.07);}
+.tbtab.hi{color:var(--t2);}
+#tbright{display:flex;align-items:center;padding:0 14px;gap:18px;border-left:1px solid var(--b1);flex-shrink:0;}
+.tb-stat{font-size:11px;letter-spacing:.3px;}
+
+/* MENUBAR */
+#menubar{background:var(--bg1);border-bottom:1px solid var(--b1);display:flex;align-items:center;padding:0 6px;height:26px;gap:1px;flex-shrink:0;}
+.mnu{padding:0 10px;height:100%;display:flex;align-items:center;font-size:11px;color:var(--t4);background:none;border:none;cursor:pointer;font-family:var(--mono);letter-spacing:.5px;}
+.mnu:hover{color:var(--or);background:rgba(245,130,31,.05);}
+.msep{width:1px;height:14px;background:var(--b2);margin:0 3px;}
+#cmdwrap{margin-left:auto;display:flex;align-items:center;gap:6px;}
+#cmdlbl{font-size:10px;color:var(--t4);}
+#cmdbox{background:var(--bg2);border:1px solid var(--b3);padding:2px 10px;font-family:var(--mono);font-size:11px;color:var(--or);width:130px;outline:none;}
+
+/* TICKER */
+#ticker{background:var(--bg0);border-bottom:1px solid var(--b1);padding:3px 0;overflow:hidden;flex-shrink:0;}
+#ticker-inner{display:flex;animation:tickscroll 50s linear infinite;white-space:nowrap;}
+@keyframes tickscroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.ti{display:inline-flex;align-items:center;gap:6px;padding:0 16px;border-right:1px solid var(--b1);font-size:11px;}
+.tsym{color:var(--or);font-weight:700;letter-spacing:.5px;}
+.tp{color:var(--t2);}
+.up{color:var(--gr);}.dn{color:var(--rd);}
+
+/* LAYOUT */
+#shell{display:flex;flex-direction:column;min-height:100vh;}
+#body{display:grid;grid-template-columns:1fr 300px;flex:1;}
+#main{border-right:1px solid var(--b1);display:flex;flex-direction:column;}
+#sidebar{display:flex;flex-direction:column;background:var(--bg1);}
+
+/* PANELS */
+.panel{border-bottom:1px solid var(--b1);}
+.phdr{background:var(--bg2);padding:5px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--b1);}
+.ptitle{font-size:11px;color:var(--or);font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.pmeta{font-size:10px;color:var(--t4);}
+
+/* UPLOAD */
+#dropZone{border:1px dashed var(--b3);background:var(--bg2);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 24px;cursor:pointer;transition:all .2s;}
+#dropZone:hover,#dropZone.over{border-color:var(--or);background:rgba(245,130,31,.03);}
+.uz-icon{width:52px;height:52px;border:1px solid var(--b3);display:flex;align-items:center;justify-content:center;margin-bottom:14px;}
+.uz-title{font-size:13px;color:var(--t1);font-weight:600;margin-bottom:5px;letter-spacing:.5px;}
+.uz-sub{font-size:11px;color:var(--t4);margin-bottom:12px;}
+.uz-fmts{display:flex;gap:7px;}
+.uzf{font-size:10px;padding:2px 8px;border:1px solid var(--b3);color:var(--t4);letter-spacing:.5px;}
+#prevWrap{display:none;position:relative;}
+#prevWrap.show{display:block;}
+#prevImg{width:100%;max-height:400px;object-fit:contain;display:block;background:#050505;}
+#prevOverlay{position:absolute;top:10px;right:10px;}
+.chg-btn{font-family:var(--mono);font-size:10px;padding:5px 12px;background:rgba(0,0,0,.85);border:1px solid var(--b3);color:var(--t3);cursor:pointer;letter-spacing:.5px;transition:all .2s;}
+.chg-btn:hover{border-color:var(--or);color:var(--or);}
+
+/* MODES */
+#modes{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--b2);}
+.mode{background:var(--bg2);padding:11px 14px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;}
+.mode:hover{background:var(--bg3);}
+.mode.sel{background:var(--bg3);border-left-color:var(--or);}
+.mode-ind{float:right;width:9px;height:9px;border:1px solid var(--b3);margin-top:2px;transition:all .15s;}
+.mode.sel .mode-ind{background:var(--or);border-color:var(--or);}
+.mode-lbl{font-size:10px;color:var(--t4);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.mode-ttl{font-size:12px;color:var(--t1);font-weight:600;margin-bottom:3px;}
+.mode-desc{font-size:10px;color:var(--t4);line-height:1.5;}
+
+/* ERROR / LOADING */
+#errBox{display:none;padding:9px 14px;background:rgba(255,23,68,.07);border-left:3px solid var(--rd);font-size:11px;color:#ff7070;gap:8px;align-items:flex-start;}
+#errBox.show{display:flex;}
+#loadWrap{display:none;padding:10px 14px;}
+#loadWrap.show{display:block;}
+#ltrack{height:2px;background:var(--b1);margin-bottom:7px;}
+#lfill{height:100%;background:var(--or);animation:lbar 2s ease-in-out infinite;}
+@keyframes lbar{0%{width:0%;margin-left:0%}50%{width:70%;margin-left:15%}100%{width:0%;margin-left:100%}}
+#ltxt{font-size:10px;color:var(--or);letter-spacing:.5px;animation:bl 1.3s infinite;}
+@keyframes bl{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ANALYZE BUTTON */
+#abtn{width:100%;padding:11px;background:var(--or);border:none;color:#000;font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:1px;cursor:pointer;text-transform:uppercase;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s;}
+#abtn:hover{background:var(--or3);}
+#abtn:disabled{background:var(--b2);color:var(--t4);cursor:not-allowed;}
+.spin{width:12px;height:12px;border:2px solid rgba(0,0,0,.25);border-top-color:#000;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* RESULTS */
+#results{display:none;}
+#results.show{display:block;}
+
+/* SIG BAR */
+#sigbar{display:flex;align-items:stretch;border-bottom:1px solid var(--b1);flex-wrap:wrap;}
+.sigblock{padding:14px 18px;border-right:1px solid var(--b1);}
+.sigblock:last-child{border-right:none;}
+.siglbl{font-size:10px;color:var(--t4);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;}
+.sigval{font-size:22px;font-weight:700;letter-spacing:1px;}
+.sv-bull{color:var(--gr);}.sv-bear{color:var(--rd);}.sv-neut{color:var(--yw);}
+
+/* DATA GRID */
+#dgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--b4,#1a1a1a);}
+.dcell{background:#0d0d0d;padding:11px 13px;}
+.dlbl{font-size:10px;color:var(--t4);letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px;}
+.dval{font-size:13px;font-weight:700;word-break:break-word;}
+.dsub{font-size:10px;color:var(--t4);margin-top:3px;}
+
+/* RESULT TABS */
+#rtabs{display:flex;border-bottom:1px solid var(--b1);background:var(--bg2);}
+.rtab{flex:1;padding:9px 6px;background:none;border:none;color:var(--t4);font-family:var(--mono);font-size:10px;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s;}
+.rtab:hover{color:var(--t1);}
+.rtab.act{color:var(--or);border-bottom-color:var(--or);}
+.rtcont{display:none;padding:18px 16px;}
+.rtcont.act{display:block;}
+.abody{font-size:12px;line-height:1.85;color:#aaa;}
+.abody .sh{color:var(--or);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;margin:20px 0 9px;border-bottom:1px solid var(--b1);padding-bottom:4px;}
+.abody .sh:first-child{margin-top:0;}
+.abody ul{list-style:none;padding:0;}
+.abody ul li{padding:5px 0 5px 18px;position:relative;border-bottom:1px solid rgba(34,34,34,.6);font-size:11px;color:#999;line-height:1.5;}
+.abody ul li::before{content:'>';position:absolute;left:0;color:var(--or);}
+
+/* DISCLAIMER */
+#disc{background:rgba(255,214,0,.03);border-top:1px solid rgba(255,214,0,.12);padding:9px 14px;font-size:10px;color:rgba(255,214,0,.55);line-height:1.6;letter-spacing:.3px;}
+
+/* SIDEBAR */
+.feed-item{padding:6px 12px;border-bottom:1px solid var(--b1);display:flex;gap:8px;align-items:flex-start;}
+.ft{font-size:10px;color:var(--or);white-space:nowrap;min-width:40px;}
+.ftxt{font-size:11px;color:var(--t3);line-height:1.4;flex:1;}
+.ftag{font-size:10px;padding:1px 5px;background:rgba(245,130,31,.1);color:var(--or);border:1px solid rgba(245,130,31,.18);white-space:nowrap;flex-shrink:0;}
+.qs-row{display:flex;justify-content:space-between;align-items:center;padding:5px 12px;border-bottom:1px solid rgba(30,30,30,.7);font-size:11px;}
+.ql{color:var(--t4);}.qv{color:var(--t1);font-weight:600;}
+.qv.up{color:var(--gr);}.qv.dn{color:var(--rd);}
+
+/* STATUS BAR */
+#statusbar{background:var(--bg2);border-top:1px solid var(--b1);display:flex;align-items:center;padding:0 12px;height:20px;gap:14px;flex-shrink:0;position:sticky;bottom:0;z-index:100;}
+.sbi{font-size:10px;color:var(--t4);letter-spacing:.4px;}
+.sbsep{width:1px;height:12px;background:var(--b2);}
+.sbgrn{color:var(--gr);font-size:10px;}
+
+@media(max-width:800px){
+  #body{grid-template-columns:1fr;}
+  #sidebar{display:none;}
+  #dgrid{grid-template-columns:1fr 1fr;}
+  .tbtab:not(.act):not(.hi){display:none;}
+}
+</style>
+</head>
+<body>
+
+<div id="shell">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="bb-logo">BLOOMBERG</div>
+    <div id="tbtabs">
+      <div class="tbtab act">CHART ANALYZER</div>
+      <div class="tbtab hi">TECHNICAL ANALYSIS</div>
+      <div class="tbtab">MARKET DATA</div>
+      <div class="tbtab">PATTERN RECOGNITION</div>
+      <div class="tbtab">RISK METRICS</div>
+    </div>
+    <div id="tbright">
+      <span class="tb-stat" id="clk" style="color:#888;letter-spacing:.5px;font-size:11px;">--:--:-- EDT</span>
+      <span class="tb-stat up">SPX 5,248 +0.4%</span>
+      <span class="tb-stat dn">VIX 14.82 -2.3%</span>
+    </div>
+  </div>
+
+  <!-- MENUBAR -->
+  <div id="menubar">
+    <button class="mnu">FILE</button>
+    <button class="mnu">EDIT</button>
+    <div class="msep"></div>
+    <button class="mnu">TA</button>
+    <button class="mnu">CHART</button>
+    <button class="mnu">NEWS</button>
+    <button class="mnu">RISK</button>
+    <div class="msep"></div>
+    <button class="mnu">HELP</button>
+    <div id="cmdwrap">
+      <span id="cmdlbl">CMD&gt;</span>
+      <input id="cmdbox" value="CHART&lt;GO&gt;" readonly>
+    </div>
+  </div>
+
+  <!-- TICKER -->
+  <div id="ticker">
+    <div id="ticker-inner"></div>
+  </div>
+
+  <!-- BODY -->
+  <div id="body">
+
+    <!-- MAIN -->
+    <div id="main">
+
+      <!-- Upload Panel -->
+      <div class="panel">
+        <div class="phdr">
+          <span class="ptitle">CHART UPLOAD &lt;ANALYZE&gt;</span>
+          <span class="pmeta" id="ptime">BLOOMBERG TERMINAL &nbsp;|&nbsp; PATTERN RECOGNITION ENGINE</span>
+        </div>
+        <div id="dropZone">
+          <input type="file" id="fi" accept="image/*" style="display:none">
+          <div class="uz-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="1"/>
+              <polyline points="3,9 9,9 12,4 15,14 17,11 21,11"/>
+            </svg>
+          </div>
+          <div class="uz-title">DROP CHART SCREENSHOT</div>
+          <div class="uz-sub">Drag &amp; drop or click to browse &mdash; all chart types supported</div>
+          <div class="uz-fmts">
+            <span class="uzf">PNG</span><span class="uzf">JPG</span><span class="uzf">WEBP</span><span class="uzf">GIF</span>
+          </div>
+        </div>
+        <div id="prevWrap">
+          <img id="prevImg" src="" alt="Chart Preview">
+          <div id="prevOverlay">
+            <button class="chg-btn" onclick="resetUpload()">CHANGE</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mode Panel -->
+      <div class="panel">
+        <div class="phdr">
+          <span class="ptitle">ANALYSIS MODE</span>
+          <span class="pmeta">SELECT FUNCTION</span>
+        </div>
+        <div id="modes">
+          <div class="mode sel" id="opt-full" onclick="selMode('full')">
+            <div class="mode-ind"></div>
+            <div class="mode-lbl">FUNCTION 1</div>
+            <div class="mode-ttl">FULL ANALYSIS</div>
+            <div class="mode-desc">Patterns, trend, S/R levels, indicators, risk parameters &amp; complete trade setup</div>
+          </div>
+          <div class="mode" id="opt-quick" onclick="selMode('quick')">
+            <div class="mode-ind"></div>
+            <div class="mode-lbl">FUNCTION 2</div>
+            <div class="mode-ttl">QUICK SIGNAL</div>
+            <div class="mode-desc">Fast directional bias with primary pattern identification only</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div id="errBox" class="panel"><span style="color:#ff1744;font-weight:700;flex-shrink:0;">ERR</span><span id="errMsg"></span></div>
+
+      <!-- Loading -->
+      <div id="loadWrap" class="panel" style="padding:10px 14px;">
+        <div id="ltrack"><div id="lfill"></div></div>
+        <div id="ltxt">SCANNING CHART PATTERNS...</div>
+      </div>
+
+      <!-- Analyze Button -->
+      <div class="panel" style="padding:9px;">
+        <button id="abtn" onclick="doAnalyze()" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          ANALYZE &lt;GO&gt;
+        </button>
+      </div>
+
+      <!-- Results -->
+      <div id="results">
+
+        <!-- Signal Bar -->
+        <div id="sigbar" class="panel">
+          <div class="sigblock" style="flex:1.2;">
+            <div class="siglbl">SIGNAL</div>
+            <div class="sigval" id="sigVal">--</div>
+          </div>
+          <div class="sigblock" style="flex:1;">
+            <div class="siglbl">CONFIDENCE</div>
+            <div class="sigval" id="confVal" style="color:var(--yw);font-size:18px;">--</div>
+          </div>
+          <div class="sigblock" style="flex:1.4;">
+            <div class="siglbl">ASSET / SYMBOL</div>
+            <div class="sigval" id="assetVal" style="color:var(--cy);font-size:15px;">--</div>
+          </div>
+          <div class="sigblock" style="flex:1;">
+            <div class="siglbl">TIMEFRAME</div>
+            <div class="sigval" id="tfVal" style="color:#888;font-size:14px;">--</div>
+          </div>
+        </div>
+
+        <!-- Data Grid -->
+        <div id="dgrid" class="panel">
+          <div class="dcell">
+            <div class="dlbl">PRIMARY PATTERN</div>
+            <div class="dval" id="patVal" style="color:var(--or);">--</div>
+            <div class="dsub" id="trendSub">--</div>
+          </div>
+          <div class="dcell">
+            <div class="dlbl">ENTRY ZONE</div>
+            <div class="dval" id="entryVal" style="color:var(--cy);">--</div>
+            <div class="dsub">SUGGESTED ENTRY</div>
+          </div>
+          <div class="dcell">
+            <div class="dlbl">RISK : REWARD</div>
+            <div class="dval" id="rrVal" style="color:var(--gr);">--</div>
+            <div class="dsub">R:R RATIO</div>
+          </div>
+          <div class="dcell">
+            <div class="dlbl">STOP LOSS</div>
+            <div class="dval" id="slVal" style="color:var(--rd);">--</div>
+            <div class="dsub">EXIT ON BREACH</div>
+          </div>
+          <div class="dcell">
+            <div class="dlbl">TARGET 1</div>
+            <div class="dval" id="t1Val" style="color:var(--gr);">--</div>
+            <div class="dsub">FIRST OBJECTIVE</div>
+          </div>
+          <div class="dcell">
+            <div class="dlbl">TARGET 2</div>
+            <div class="dval" id="t2Val" style="color:var(--gr);">--</div>
+            <div class="dsub">SECOND OBJECTIVE</div>
+          </div>
+        </div>
+
+        <!-- Analysis Tabs -->
+        <div style="background:var(--bg1);">
+          <div id="rtabs">
+            <button class="rtab act" onclick="swtab('ov',this)">OVERVIEW</button>
+            <button class="rtab" onclick="swtab('pat',this)">PATTERNS</button>
+            <button class="rtab" onclick="swtab('lvl',this)">KEY LEVELS</button>
+            <button class="rtab" onclick="swtab('trd',this)">TRADE SETUP</button>
+            <button class="rtab" onclick="swtab('ind',this)">INDICATORS</button>
+          </div>
+          <div class="rtcont act" id="tab-ov"><div class="abody" id="txt-ov"></div></div>
+          <div class="rtcont" id="tab-pat"><div class="abody" id="txt-pat"></div></div>
+          <div class="rtcont" id="tab-lvl"><div class="abody" id="txt-lvl"></div></div>
+          <div class="rtcont" id="tab-trd"><div class="abody" id="txt-trd"></div></div>
+          <div class="rtcont" id="tab-ind"><div class="abody" id="txt-ind"></div></div>
+        </div>
+
+        <div id="disc">
+          WARNING: THIS OUTPUT IS GENERATED BY BLOOMBERG TERMINAL AI ENGINE FOR INFORMATIONAL PURPOSES ONLY.
+          NOT FINANCIAL ADVICE. TRADING INVOLVES SUBSTANTIAL RISK OF LOSS.
+          PAST PATTERNS DO NOT GUARANTEE FUTURE RESULTS. CONSULT A REGISTERED FINANCIAL ADVISOR BEFORE TRADING.
+        </div>
+      </div>
+
+    </div><!-- /main -->
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+
+      <div class="panel">
+        <div class="phdr">
+          <span class="ptitle">MARKET FEED</span>
+          <span class="pmeta" style="color:var(--gr);">&#9679; LIVE</span>
+        </div>
+        <div id="feed">
+          <div class="feed-item"><span class="ft">09:32</span><span class="ftxt">SPX extends gains on strong jobless claims data</span><span class="ftag">EQ</span></div>
+          <div class="feed-item"><span class="ft">09:28</span><span class="ftxt">BTC holds above 67k resistance — bulls in control</span><span class="ftag">CRYPT</span></div>
+          <div class="feed-item"><span class="ft">09:21</span><span class="ftxt">EUR/USD tests 1.085 key support level closely watched</span><span class="ftag">FX</span></div>
+          <div class="feed-item"><span class="ft">09:15</span><span class="ftxt">Gold consolidates near all-time highs of $2,340</span><span class="ftag">CMD</span></div>
+          <div class="feed-item"><span class="ft">09:08</span><span class="ftxt">TSLA breaks below 200-day MA — bearish signal</span><span class="ftag">EQ</span></div>
+          <div class="feed-item"><span class="ft">08:55</span><span class="ftxt">Fed: Waller speaks 11am, Bostic at 2pm EDT today</span><span class="ftag">MACRO</span></div>
+          <div class="feed-item"><span class="ft">08:40</span><span class="ftxt">Nikkei closes +0.8%, Shanghai flat on trade data</span><span class="ftag">ASIA</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="phdr"><span class="ptitle">QUICK STATS</span><span class="pmeta">SNAPSHOT</span></div>
+        <div>
+          <div class="qs-row"><span class="ql">SPX</span><span class="qv up">5,248.49 +0.4%</span></div>
+          <div class="qs-row"><span class="ql">NDX</span><span class="qv up">18,421 +0.9%</span></div>
+          <div class="qs-row"><span class="ql">DJI</span><span class="qv dn">39,170 -0.1%</span></div>
+          <div class="qs-row"><span class="ql">VIX</span><span class="qv dn">14.82 -2.3%</span></div>
+          <div class="qs-row"><span class="ql">BTC/USD</span><span class="qv up">67,842 +2.4%</span></div>
+          <div class="qs-row"><span class="ql">ETH/USD</span><span class="qv up">3,421 +1.8%</span></div>
+          <div class="qs-row"><span class="ql">GOLD</span><span class="qv up">2,318 +0.5%</span></div>
+          <div class="qs-row"><span class="ql">CRUDE</span><span class="qv up">82.47 +0.7%</span></div>
+          <div class="qs-row"><span class="ql">EUR/USD</span><span class="qv dn">1.0842 -0.1%</span></div>
+          <div class="qs-row"><span class="ql">GBP/USD</span><span class="qv up">1.2643 +0.1%</span></div>
+          <div class="qs-row"><span class="ql">10Y UST</span><span class="qv dn">4.412% -0.02</span></div>
+          <div class="qs-row"><span class="ql">DXY</span><span class="qv up">104.22 +0.2%</span></div>
+        </div>
+      </div>
+
+      <div class="panel" style="border-bottom:none;">
+        <div class="phdr"><span class="ptitle">TERMINAL INFO</span><span class="pmeta">SYS</span></div>
+        <div>
+          <div class="qs-row"><span class="ql">SYSTEM</span><span class="qv" style="color:var(--or);">BLOOMBERG TERMINAL</span></div>
+          <div class="qs-row"><span class="ql">AI ENGINE</span><span class="qv" style="color:var(--cy);">BLOOMBERG TERMINAL</span></div>
+          <div class="qs-row"><span class="ql">PATTERN DB</span><span class="qv up">ACTIVE</span></div>
+          <div class="qs-row"><span class="ql">FEED</span><span class="qv up">CONNECTED</span></div>
+          <div class="qs-row"><span class="ql">STATUS</span><span class="qv" id="sysStatus">READY</span></div>
+          <div class="qs-row"><span class="ql">BUILD</span><span class="qv" style="color:var(--t4);">v2025.1</span></div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar -->
+
+  </div><!-- /body -->
+
+  <!-- STATUS BAR -->
+  <div id="statusbar">
+    <span class="sbi">BLOOMBERG TERMINAL</span>
+    <div class="sbsep"></div>
+    <span class="sbi" id="stMode">MODE: FULL ANALYSIS</span>
+    <div class="sbsep"></div>
+    <span class="sbi" id="stStatus">STATUS: READY</span>
+    <div class="sbsep" style="margin-left:auto;"></div>
+    <span class="sbgrn">&#9679; CONNECTED</span>
+    <div class="sbsep"></div>
+    <span class="sbi" id="stTime2">--:--:--</span>
+  </div>
+
+</div><!-- /shell -->
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const API_URL = "https://api.anthropic.com/v1/messages";
+
+// ── STATE ────────────────────────────────────────────────────────────────────
+let mode = "full";
+let imgB64 = null;
+let imgMime = "image/jpeg";
+
+// ── TICKER ───────────────────────────────────────────────────────────────────
+const TDATA = [
+  {s:"BTC/USD",p:"67,842",d:"+2.4%",u:1},{s:"ETH/USD",p:"3,421",d:"+1.8%",u:1},
+  {s:"SPY",p:"524.31",d:"-0.3%",u:0},{s:"AAPL",p:"189.45",d:"+0.7%",u:1},
+  {s:"TSLA",p:"248.20",d:"-1.2%",u:0},{s:"GOLD",p:"2,318",d:"+0.5%",u:1},
+  {s:"EUR/USD",p:"1.0842",d:"-0.1%",u:0},{s:"NQ1!",p:"18,422",d:"+0.9%",u:1},
+  {s:"SOL/USD",p:"142.30",d:"+3.1%",u:1},{s:"DXY",p:"104.22",d:"+0.2%",u:1},
+  {s:"CRUDE",p:"82.47",d:"+0.7%",u:1},{s:"10Y",p:"4.412%",d:"-0.02",u:0},
+  {s:"VIX",p:"14.82",d:"-2.3%",u:0},{s:"GBP/USD",p:"1.2643",d:"+0.1%",u:1},
+];
+const all = [...TDATA,...TDATA];
+document.getElementById("ticker-inner").innerHTML =
+  all.map(t=>`<span class="ti"><span class="tsym">${t.s}</span><span class="tp">${t.p}</span><span class="${t.u?"up":"dn"}">${t.d}</span></span>`).join("");
+
+// ── CLOCK ────────────────────────────────────────────────────────────────────
+function tick() {
+  const ts = new Date().toLocaleTimeString("en-US",{hour12:false}) + " EDT";
+  document.getElementById("clk").textContent = ts;
+  document.getElementById("stTime2").textContent = ts;
+}
+tick(); setInterval(tick, 1000);
+
+// ── DROP ZONE ────────────────────────────────────────────────────────────────
+const dz = document.getElementById("dropZone");
+const fi = document.getElementById("fi");
+dz.addEventListener("click", () => fi.click());
+dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("over"); });
+dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+dz.addEventListener("drop", e => { e.preventDefault(); dz.classList.remove("over"); loadFile(e.dataTransfer.files[0]); });
+fi.addEventListener("change", e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+function loadFile(f) {
+  if (!f || !f.type.startsWith("image/")) return;
+  imgMime = f.type || "image/jpeg";
+  const r = new FileReader();
+  r.onload = e => {
+    imgB64 = e.target.result.split(",")[1];
+    document.getElementById("prevImg").src = e.target.result;
+    dz.style.display = "none";
+    document.getElementById("prevWrap").classList.add("show");
+    document.getElementById("abtn").disabled = false;
+    hideErr();
+    document.getElementById("results").classList.remove("show");
+    setStatus("CHART LOADED — READY TO ANALYZE");
+  };
+  r.readAsDataURL(f);
+}
+
+function resetUpload() {
+  imgB64 = null;
+  dz.style.display = "";
+  document.getElementById("prevWrap").classList.remove("show");
+  document.getElementById("abtn").disabled = true;
+  document.getElementById("results").classList.remove("show");
+  fi.value = "";
+  hideErr();
+  setStatus("READY");
+}
+
+// ── MODE SELECT ───────────────────────────────────────────────────────────────
+function selMode(m) {
+  mode = m;
+  document.querySelectorAll(".mode").forEach(c => c.classList.remove("sel"));
+  document.getElementById("opt-" + m).classList.add("sel");
+  document.getElementById("stMode").textContent = "MODE: " + (m === "full" ? "FULL ANALYSIS" : "QUICK SIGNAL");
+}
+
+// ── ERROR / STATUS ────────────────────────────────────────────────────────────
+function showErr(msg) { document.getElementById("errMsg").textContent = msg; document.getElementById("errBox").classList.add("show"); }
+function hideErr() { document.getElementById("errBox").classList.remove("show"); }
+function setStatus(s) { document.getElementById("stStatus").textContent = "STATUS: " + s; document.getElementById("sysStatus").textContent = s; }
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function swtab(id, btn) {
+  document.querySelectorAll(".rtab").forEach(b => b.classList.remove("act"));
+  document.querySelectorAll(".rtcont").forEach(c => c.classList.remove("act"));
+  btn.classList.add("act");
+  document.getElementById("tab-" + id).classList.add("act");
+}
+
+// ── LOADING MESSAGES ──────────────────────────────────────────────────────────
+const LMSGS = [
+  "SCANNING CHART PATTERNS...", "IDENTIFYING SUPPORT & RESISTANCE...",
+  "CALCULATING TREND MOMENTUM...", "RUNNING INDICATOR ANALYSIS...",
+  "GENERATING TRADE PARAMETERS...", "CROSS-REFERENCING SIGNALS..."
+];
+
+// ── PROMPTS ───────────────────────────────────────────────────────────────────
+function fullPrompt() {
+  return `You are an expert technical analyst with 20+ years of experience in stocks, crypto, forex, and commodities. Analyze this trading chart image thoroughly and professionally.
+
+Respond ONLY in valid JSON (no markdown fences, no extra text before or after):
+{
+  "signal": "BULLISH" or "BEARISH" or "NEUTRAL",
+  "confidence": "HIGH" or "MEDIUM" or "LOW",
+  "timeframe": "detected timeframe or Unknown",
+  "asset": "detected asset/symbol or Unknown",
+  "trend": "1-2 sentence current trend description",
+  "overview": "Thorough paragraph describing chart context, price action, and market structure.",
+  "patterns": ["pattern1", "pattern2"],
+  "patternDetails": "Detailed explanation of each identified pattern, its reliability, and implication.",
+  "support": ["level1", "level2"],
+  "resistance": ["level1", "level2"],
+  "levelDetails": "Explanation of support/resistance zones and price reactions at these levels.",
+  "indicators": "Description of any visible indicators (MA, RSI, MACD, Bollinger Bands, volume etc) and what they signal.",
+  "entryZone": "Suggested entry price range or zone",
+  "stopLoss": "Suggested stop loss level",
+  "target1": "First price target",
+  "target2": "Second price target",
+  "riskReward": "Estimated risk:reward ratio e.g. 1:2.5",
+  "tradeNotes": "Additional trade setup notes, confluence factors, and risk management caveats."
+}`;
+}
+
+function quickPrompt() {
+  return `You are a professional technical trader. Quickly analyze this trading chart.
+
+Respond ONLY in valid JSON (no markdown fences, no extra text):
+{
+  "signal": "BULLISH" or "BEARISH" or "NEUTRAL",
+  "confidence": "HIGH" or "MEDIUM" or "LOW",
+  "pattern": "primary pattern name",
+  "asset": "detected asset or Unknown",
+  "trend": "Up-trend / Down-trend / Sideways",
+  "summary": "2-3 sentence analysis summary and signal reasoning.",
+  "entryZone": "quick entry note",
+  "stopLoss": "quick stop loss note",
+  "target1": "first price target",
+  "riskReward": "R:R ratio"
+}`;
+}
+
+// ── PARSE JSON ────────────────────────────────────────────────────────────────
+function parseJ(txt) {
+  try {
+    return JSON.parse(txt.replace(/```json\n?/g,"").replace(/```\n?/g,"").trim());
+  } catch {
+    return {
+      signal:"NEUTRAL", confidence:"LOW", trend:"", overview:txt,
+      patterns:[], patternDetails:"", support:[], resistance:[],
+      levelDetails:"", indicators:"", entryZone:"N/A", stopLoss:"N/A",
+      target1:"N/A", target2:"N/A", riskReward:"N/A", tradeNotes:"",
+      asset:"UNKNOWN", timeframe:"N/A", pattern:"UNKNOWN", summary:txt
+    };
+  }
+}
+
+// ── ANALYZE ───────────────────────────────────────────────────────────────────
+async function doAnalyze() {
+  if (!imgB64) return;
+  hideErr();
+
+  const btn = document.getElementById("abtn");
+  const lw = document.getElementById("loadWrap");
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spin"></div> PROCESSING...';
+  lw.classList.add("show");
+  setStatus("ANALYZING...");
+
+  let mi = 0;
+  const intv = setInterval(() => {
+    document.getElementById("ltxt").textContent = LMSGS[mi++ % LMSGS.length];
+  }, 1800);
+
+  const prompt = mode === "full" ? fullPrompt() : quickPrompt();
+
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: imgMime, data: imgB64 } },
+            { type: "text", text: prompt }
+          ]
+        }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error?.message || "API ERROR " + res.status);
+    }
+
+    const data = await res.json();
+    const txt = data.content?.[0]?.text;
+    if (!txt) throw new Error("EMPTY RESPONSE FROM ENGINE");
+
+    clearInterval(intv);
+    lw.classList.remove("show");
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> RE-ANALYZE &lt;GO&gt;';
+    setStatus("ANALYSIS COMPLETE");
+
+    const d = parseJ(txt);
+    renderResults(d, mode);
+
+  } catch (e) {
+    clearInterval(intv);
+    lw.classList.remove("show");
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> ANALYZE &lt;GO&gt;';
+    setStatus("ERROR — RETRY");
+    showErr("ANALYSIS FAILED: " + e.message);
+  }
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function renderResults(d, m) {
+  const sig = (d.signal || "NEUTRAL").toUpperCase();
+  const sigClass = sig === "BULLISH" ? "sv-bull" : sig === "BEARISH" ? "sv-bear" : "sv-neut";
+
+  const sv = document.getElementById("sigVal");
+  sv.textContent = sig; sv.className = "sigval " + sigClass;
+  document.getElementById("confVal").textContent = d.confidence || "--";
+  document.getElementById("assetVal").textContent = (d.asset || "UNKNOWN").toUpperCase();
+  document.getElementById("tfVal").textContent = d.timeframe || "N/A";
+
+  document.getElementById("patVal").textContent = m === "quick" ? (d.pattern || "--") : (d.patterns?.[0] || "MIXED");
+  document.getElementById("trendSub").textContent = (d.trend || "--").substring(0, 60);
+  document.getElementById("entryVal").textContent = d.entryZone || "N/A";
+  document.getElementById("rrVal").textContent = d.riskReward || "N/A";
+  document.getElementById("slVal").textContent = d.stopLoss || "N/A";
+  document.getElementById("t1Val").textContent = d.target1 || "N/A";
+  document.getElementById("t2Val").textContent = d.target2 || "N/A";
+
+  // Tab content
+  if (m === "full") {
+    set("txt-ov",
+      `<div class="sh">MARKET CONTEXT</div>${d.overview || ""}` +
+      `<div class="sh">TREND ANALYSIS</div>${d.trend || ""}`
+    );
+    const pl = (d.patterns || []).map(p => `<li>${p}</li>`).join("") || "<li>NO CLASSICAL PATTERNS DETECTED</li>";
+    set("txt-pat",
+      `<div class="sh">IDENTIFIED PATTERNS</div><ul>${pl}</ul>` +
+      `<div class="sh">PATTERN ANALYSIS</div>${d.patternDetails || ""}`
+    );
+    const sl = (d.support || []).map(p => `<li>SUPPORT: ${p}</li>`).join("");
+    const rl = (d.resistance || []).map(p => `<li>RESISTANCE: ${p}</li>`).join("");
+    set("txt-lvl",
+      `<div class="sh">KEY PRICE LEVELS</div><ul>${sl}${rl || "<li>NOT CLEARLY IDENTIFIED</li>"}</ul>` +
+      `<div class="sh">LEVEL ANALYSIS</div>${d.levelDetails || ""}`
+    );
+    set("txt-trd",
+      `<div class="sh">TRADE PARAMETERS</div>` +
+      `<ul><li>ENTRY ZONE: ${d.entryZone||"N/A"}</li><li>STOP LOSS: ${d.stopLoss||"N/A"}</li>` +
+      `<li>TARGET 1: ${d.target1||"N/A"}</li><li>TARGET 2: ${d.target2||"N/A"}</li>` +
+      `<li>RISK:REWARD: ${d.riskReward||"N/A"}</li></ul>` +
+      `<div class="sh">TRADE NOTES</div>${d.tradeNotes || ""}`
+    );
+    set("txt-ind",
+      `<div class="sh">INDICATOR READINGS</div>${d.indicators || "NOT CLEARLY VISIBLE IN CHART"}`
+    );
+  } else {
+    set("txt-ov", `<div class="sh">QUICK ANALYSIS</div>${d.summary || ""}`);
+    set("txt-pat", `<div class="sh">PRIMARY PATTERN</div><ul><li>${d.pattern || "N/A"}</li></ul>`);
+    set("txt-lvl", `<div class="sh">KEY LEVELS</div><ul><li>ENTRY: ${d.entryZone||"N/A"}</li><li>STOP: ${d.stopLoss||"N/A"}</li><li>TARGET: ${d.target1||"N/A"}</li></ul>`);
+    set("txt-trd", `<div class="sh">TRADE SETUP</div><ul><li>ENTRY: ${d.entryZone||"N/A"}</li><li>STOP LOSS: ${d.stopLoss||"N/A"}</li><li>TARGET: ${d.target1||"N/A"}</li><li>R:R: ${d.riskReward||"N/A"}</li></ul>`);
+    set("txt-ind", `<div class="sh">INDICATORS</div>RUN FULL ANALYSIS MODE FOR DETAILED INDICATOR BREAKDOWN`);
+  }
+
+  // Reset tabs
+  document.querySelectorAll(".rtab").forEach((b,i) => { b.classList.remove("act"); if(i===0) b.classList.add("act"); });
+  document.querySelectorAll(".rtcont").forEach((c,i) => { c.classList.remove("act"); if(i===0) c.classList.add("act"); });
+
+  document.getElementById("results").classList.add("show");
+  document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function set(id, html) {
+  document.getElementById(id).innerHTML = html.replace(/\n/g, "<br>");
+}
+</script>
+</body>
+</html>
